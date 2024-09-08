@@ -104,18 +104,27 @@ fn main() {
     const FEN_STRING: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     let mut theboard = create_board(Some(FEN_STRING)).unwrap();
     theboard.print_board();
-
-    let piece = theboard.board[55].clone().unwrap();
-    let moves = piece.get_piece_moves(55);
-
-    println!("{}", piece.name);
-    let mut movetomake: usize = 0;
-    for i in moves {
-        println!("{}", i);
-        movetomake = i;
+    let moves_map = theboard.get_moves();
+    for pos in 0..moves_map.len() {
+        println!("{}", pos);
+        if let Some(moves) = moves_map.get(&pos) {
+            for mov in moves {
+                println!(" {}", mov);
+            }
+        }
     }
-    theboard.move_piece(55, movetomake);
-    theboard.print_board();
+
+    // let piece = theboard.board[55].clone().unwrap();
+    // let moves = piece.get_piece_moves(55);
+
+    // println!("{}", piece.name);
+    // let mut movetomake: usize = 0;
+    // for i in moves {
+    //     println!("{}", i);
+    //     movetomake = i;
+    // }
+    // theboard.move_piece(55, movetomake);
+    // theboard.print_board();
 }
 
 pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
