@@ -44,22 +44,6 @@ impl Board {
         return moves_map;
     }
 
-    //     if (self.turn && piece.name.is_uppercase())
-    //     || (!self.turn && piece.name.is_lowercase()) && to <= 64
-    // {
-    //     if let Some(new_pos) = &self.board[to] {
-    //         if piece.name.is_uppercase() {
-    //             if new_pos.name.is_lowercase() {
-    //                 self.board[to] = Some(piece.clone());
-    //                 self.board[from] = None;
-    //             }
-    //         } else if piece.name.is_lowercase() {
-    //             if new_pos.name.is_uppercase() {
-    //                 self.board[to] = Some(piece.clone());
-    //                 self.board[from] = None;
-    //             }
-    //         }
-    //     }
     fn valid_move(&self, from: usize, to: usize) -> usize {
         let from_piece = self.board[from].clone().unwrap();
         if from_piece.color && self.turn {
@@ -121,18 +105,17 @@ fn main() {
     let mut theboard = create_board(Some(FEN_STRING)).unwrap();
     theboard.print_board();
 
-    theboard.move_piece(10, 32);
-    theboard.print_board();
+    let piece = theboard.board[55].clone().unwrap();
+    let moves = piece.get_piece_moves(55);
 
-    // let moves = theboard.get_moves();
-    // for (i, j) in moves {
-    //     for k in j {
-    //         println!("{}", k);
-    //     }
-    // }
-    for i in theboard.board[11].clone().unwrap().get_piece_moves(11) {
+    println!("{}", piece.name);
+    let mut movetomake: usize = 0;
+    for i in moves {
         println!("{}", i);
+        movetomake = i;
     }
+    theboard.move_piece(55, movetomake);
+    theboard.print_board();
 }
 
 pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
@@ -174,40 +157,70 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                 let mut color: bool = true;
                 match c {
                     'p' => {
-                        moves = vec![10, 20, 11, 9];
-                        color = false;
-                    } // Black pawn moves: 1 square forward, 2 squares forward (initial move), capture left, capture right
-                    'P' => moves = vec![-10, -20, -11, -9], // White pawn moves: 1 square forward, 2 squares forward (initial move), capture left, capture right
+                        moves = vec![8, 16]; // Black pawn: 1 square forward (8), 2 squares forward (16 for the initial move)
+                                             // attacks = vec![7, 9]; // Black pawn: diagonal captures (left 7, right 9)
+                        color = false; // Black
+                    }
+                    'P' => {
+                        moves = vec![-8, -16]; // White pawn: 1 square forward (-8), 2 squares forward (-16 for the initial move)
+                                               // attacks = vec![-9, -7]; // White pawn: diagonal captures (left -9, right -7)
+                        color = true; // White
+                    }
 
                     'r' => {
-                        moves = vec![10, -10, 1, -1];
-                        color = false;
-                    } // Black rook moves: vertically or horizontally
-                    'R' => moves = vec![10, -10, 1, -1], // White rook moves: vertically or horizontally
+                        moves = vec![8, -8, 1, -1]; // Black rook: vertically (±8) or horizontally (±1)
+                                                    // max_steps = 8; // Rook can move up to 8 squares in any direction
+                        color = false; // Black
+                    }
+                    'R' => {
+                        moves = vec![8, -8, 1, -1]; // White rook: vertically (±8) or horizontally (±1)
+                                                    // max_steps = 8; // Rook can move up to 8 squares in any direction
+                        color = true; // White
+                    }
 
                     'n' => {
-                        moves = vec![21, 19, 12, 8, -21, -19, -12, -8];
-                        color = false;
-                    } // Black knight moves: "L" shapes in all directions
-                    'N' => moves = vec![21, 19, 12, 8, -21, -19, -12, -8], // White knight moves: "L" shapes in all directions
+                        moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // Black knight: "L" shapes
+                                                                        // max_steps = 1; // Knight jumps, so max_steps is 1
+                        color = false; // Black
+                    }
+                    'N' => {
+                        moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // White knight: "L" shapes
+                                                                        // max_steps = 1; // Knight jumps, so max_steps is 1
+                        color = true; // White
+                    }
 
                     'b' => {
-                        moves = vec![11, -11, 9, -9];
-                        color = false;
-                    } // Black bishop moves: diagonally
-                    'B' => moves = vec![11, -11, 9, -9], // White bishop moves: diagonally
+                        moves = vec![9, 7, -9, -7]; // Black bishop: diagonally (±9, ±7)
+                                                    // max_steps = 8; // Bishop can move up to 8 squares diagonally
+                        color = false; // Black
+                    }
+                    'B' => {
+                        moves = vec![9, 7, -9, -7]; // White bishop: diagonally (±9, ±7)
+                                                    // max_steps = 8; // Bishop can move up to 8 squares diagonally
+                        color = true; // White
+                    }
 
                     'q' => {
-                        moves = vec![10, -10, 1, -1, 11, -11, 9, -9];
-                        color = false;
-                    } // Black queen moves: combination of rook and bishop
-                    'Q' => moves = vec![10, -10, 1, -1, 11, -11, 9, -9], // White queen moves: combination of rook and bishop
+                        moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black queen: combination of rook and bishop
+                                                                  // max_steps = 8; // Queen can move up to 8 squares in any direction
+                        color = false; // Black
+                    }
+                    'Q' => {
+                        moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // White queen: combination of rook and bishop
+                                                                  // max_steps = 8; // Queen can move up to 8 squares in any direction
+                        color = true; // White
+                    }
 
                     'k' => {
-                        moves = vec![10, -10, 1, -1, 11, -11, 9, -9];
-                        color = false;
-                    } // Black king moves: one square in any direction
-                    'K' => moves = vec![10, -10, 1, -1, 11, -11, 9, -9], // White king moves: one square in any direction
+                        moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black king: one square in any direction
+                                                                  // max_steps = 1; // King can only move 1 square
+                        color = false; // Black
+                    }
+                    'K' => {
+                        moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // White king: one square in any direction
+                                                                  // max_steps = 1; // King can only move 1 square
+                        color = true; // White
+                    }
                     _ => moves = Vec::new(),
                 }
                 let pos = width + height * 8;
