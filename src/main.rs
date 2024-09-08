@@ -13,10 +13,42 @@ impl Piece {
 
     fn get_piece_moves(&self, pos: usize) -> Vec<usize> {
         let mut move_positions: Vec<usize> = Vec::new();
+        let current_row = pos / 8; // Current row (0-7)
+        let current_col = pos % 8; // Current column (0-7)
         for mv in &self.moves {
             let new = pos as i32 + mv;
             if new >= 0 && new < 64 {
-                move_positions.push(new as usize);
+                let new_row = (new as usize) / 8;
+                let new_col = (new as usize) % 8;
+                let name = self.name;
+                let mut legal: bool = false;
+
+                // make check for pawn attack and
+                match name {
+                    'r' => {
+                        legal = current_row == new_row || current_col == new_col;
+                    }
+                    'b' => {
+                        legal = current_row as i32 - new_row as i32
+                            == current_col as i32 - new_col as i32;
+                    }
+                    'q' => {
+                        legal = (current_row == new_row || current_col == new_col)
+                            || (current_row as i32 - new_row as i32
+                                == current_col as i32 - new_col as i32);
+                    }
+                    'n' => legal = true,
+                    'p' => legal = true,
+                    'k' => {
+                        legal = (current_row == new_row || current_col == new_col)
+                            || (current_row as i32 - new_row as i32
+                                == current_col as i32 - new_col as i32);
+                    }
+                    _ => {}
+                }
+                if legal {
+                    move_positions.push(new as usize);
+                }
             }
         }
         return move_positions;
