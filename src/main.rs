@@ -20,10 +20,9 @@ impl Piece {
             if new >= 0 && new < 64 {
                 let new_row = (new as usize) / 8;
                 let new_col = (new as usize) % 8;
-                let name = self.name;
+                let name = self.name.to_ascii_lowercase();
                 let mut legal: bool = false;
 
-                // make check for pawn attack and
                 match name {
                     'r' => {
                         legal = current_row == new_row || current_col == new_col;
@@ -55,6 +54,12 @@ impl Piece {
     }
 }
 
+pub enum GameState {
+    InProgress,
+    Check,
+    Checkmate,
+}
+
 pub struct Board {
     board: [Option<Piece>; 64],
     turn: bool,
@@ -63,6 +68,13 @@ impl Board {
     fn new(board: [Option<Piece>; 64], turn: bool) -> Board {
         return Board { board, turn };
     }
+
+    fn get_game_state() -> GameState {
+        let mut game_state = GameState::InProgress;
+
+        return game_state;
+    }
+
     fn get_piece(&self, pos: usize) -> Option<Piece> {
         return self.board[pos].clone();
     }
@@ -93,7 +105,7 @@ impl Board {
         return 0;
     }
 
-    fn move_piece(&mut self, from: usize, to: usize) {
+    pub fn move_piece(&mut self, from: usize, to: usize) {
         if let Some(piece) = &self.board[from] {
             match self.valid_move(from, to) {
                 0 => {
@@ -137,26 +149,26 @@ fn main() {
     let mut theboard = create_board(Some(FEN_STRING)).unwrap();
     theboard.print_board();
     let moves_map = theboard.get_moves();
-    for pos in 0..moves_map.len() {
-        println!("{}", pos);
-        if let Some(moves) = moves_map.get(&pos) {
-            for mov in moves {
-                println!(" {}", mov);
-            }
-        }
-    }
-
-    // let piece = theboard.board[55].clone().unwrap();
-    // let moves = piece.get_piece_moves(55);
-
-    // println!("{}", piece.name);
-    // let mut movetomake: usize = 0;
-    // for i in moves {
-    //     println!("{}", i);
-    //     movetomake = i;
+    // for pos in 0..moves_map.len() {
+    //     println!("{}", pos);
+    //     if let Some(moves) = moves_map.get(&pos) {
+    //         for mov in moves {
+    //             println!(" {}", mov);
+    //         }
+    //     }
     // }
-    // theboard.move_piece(55, movetomake);
-    // theboard.print_board();
+
+    let piece = theboard.board[0].clone().unwrap();
+    let moves = piece.get_piece_moves(0);
+
+    println!("{}", piece.name);
+    let mut movetomake: usize = 0;
+    for i in moves {
+        println!("{}", i);
+        movetomake = i;
+    }
+    theboard.move_piece(0, movetomake);
+    theboard.print_board();
 }
 
 pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
