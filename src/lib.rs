@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ptr::NonNull};
 
 #[derive(Clone)]
 pub struct Piece {
@@ -64,10 +64,15 @@ pub enum GameState {
 pub struct Board {
     pub board: [Option<Piece>; 64],
     pub turn: bool,
+    pub selected: Option<usize>,
 }
 impl Board {
     pub fn new(board: [Option<Piece>; 64], turn: bool) -> Board {
-        return Board { board, turn };
+        return Board {
+            board,
+            turn,
+            selected: None,
+        };
     }
 
     pub fn get_game_state() -> GameState {
@@ -101,7 +106,7 @@ impl Board {
 
     fn valid_move(&self, from: usize, to: usize) -> usize {
         let from_piece = self.board[from].clone().unwrap();
-        if from_piece.color && self.turn {
+        if from_piece.color == self.turn {
             if let Some(to_piece) = &self.board[to] {
                 if to_piece.color != from_piece.color {
                     //check for checkmate and etc.
@@ -112,7 +117,6 @@ impl Board {
                 return 1;
             }
         }
-
         return 0;
     }
 
@@ -120,7 +124,7 @@ impl Board {
         if let Some(piece) = &self.board[from] {
             match self.valid_move(from, to) {
                 0 => {
-                    println!("Invalid move!");
+                    println!("Invalid move!, {} {}", self.turn, piece.color);
                 }
                 1 => {
                     //Normal move
