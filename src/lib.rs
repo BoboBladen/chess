@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ptr::NonNull};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Piece {
@@ -96,7 +96,8 @@ impl Board {
 
     pub fn get_valid_moves(&self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
-        for mv in self.board[pos].clone().unwrap().get_piece_moves(pos) {
+        let piece = self.board[pos].clone().unwrap();
+        for mv in piece.get_piece_moves(pos) {
             if self.valid_move(pos, mv) != 0 {
                 moves.push(mv);
             }
