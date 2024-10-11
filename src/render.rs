@@ -5,8 +5,8 @@ use opengl_graphics::*;
 pub use crate::lib::Board;
 use crate::SCREEN_HEIGHT;
 
-const COLOR1: [f32; 4] = [0.2, 0.1, 0.1, 1.0];
-const COLOR2: [f32; 4] = [0.9, 0.75, 0.75, 1.0];
+const COLOR1: [f32; 4] = [0.4, 0.35, 0.35, 1.0];
+const COLOR2: [f32; 4] = [0.9, 0.8, 0.75, 1.0];
 const CELL_SIZE: usize = SCREEN_HEIGHT / 8;
 
 pub fn draw_board<G: Graphics<Texture = Texture>>(c: &Context, g: &mut G, board: Board) {
@@ -26,7 +26,7 @@ pub fn draw_board<G: Graphics<Texture = Texture>>(c: &Context, g: &mut G, board:
                 }
             }
             if sq == i {
-                color = [0.5, 0.5, 0.5, 1.0];
+                color = [0.6, 0.3, 0.3, 1.0];
             }
         }
         if (i % 8) == 7 {

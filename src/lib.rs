@@ -4,54 +4,59 @@ use std::collections::HashMap;
 pub struct Piece {
     pub name: char,
     moves: Vec<i32>,
+    max_steps: usize,
     color: bool,
 }
 impl Piece {
-    fn new(name: char, moves: Vec<i32>, color: bool) -> Piece {
-        return Piece { name, moves, color };
+    fn new(name: char, moves: Vec<i32>, max_steps: usize, color: bool) -> Piece {
+        return Piece {
+            name,
+            moves,
+            max_steps,
+            color,
+        };
     }
 
-    pub fn get_piece_moves(&self, pos: usize) -> Vec<usize> {
-        let mut move_positions: Vec<usize> = Vec::new();
-        let current_row = pos / 8; // Current row (0-7)
-        let current_col = pos % 8; // Current column (0-7)
-        for mv in &self.moves {
-            let new = pos as i32 + mv;
-            if new >= 0 && new < 64 {
-                let new_row = (new as usize) / 8;
-                let new_col = (new as usize) % 8;
-                let name = self.name.to_ascii_lowercase();
-                let mut legal: bool = false;
-
-                match name {
-                    'r' => {
-                        legal = current_row == new_row || current_col == new_col;
-                    }
-                    'b' => {
-                        legal = current_row as i32 - new_row as i32
-                            == current_col as i32 - new_col as i32;
-                    }
-                    'q' => {
-                        legal = (current_row == new_row || current_col == new_col)
-                            || (current_row as i32 - new_row as i32
-                                == current_col as i32 - new_col as i32);
-                    }
-                    'n' => legal = true,
-                    'p' => legal = true,
-                    'k' => {
-                        legal = (current_row == new_row || current_col == new_col)
-                            || (current_row as i32 - new_row as i32
-                                == current_col as i32 - new_col as i32);
-                    }
-                    _ => {}
-                }
-                if legal {
-                    move_positions.push(new as usize);
-                }
-            }
-        }
-        return move_positions;
-    }
+    // pub fn get_piece_moves(&self, pos: usize) -> Vec<usize> {
+    //     let mut move_positions: Vec<usize> = Vec::new();
+    //     let current_row = pos / 8; // Current row (0-7)
+    //     let current_col = pos % 8; // Current column (0-7)
+    //     for mv in &self.moves {
+    //         let new = pos as i32 + mv;
+    //         if new >= 0 && new < 64 {
+    //             let new_row = (new as usize) / 8;
+    //             let new_col = (new as usize) % 8;
+    //             let name = self.name.to_ascii_lowercase();
+    //             let mut legal: bool = false;
+    //             match name {
+    //                 'r' => {
+    //                     legal = current_row == new_row || current_col == new_col;
+    //                 }
+    //                 'b' => {
+    //                     legal = current_row as i32 - new_row as i32
+    //                         == current_col as i32 - new_col as i32;
+    //                 }
+    //                 'q' => {
+    //                     legal = (current_row == new_row || current_col == new_col)
+    //                         || (current_row as i32 - new_row as i32
+    //                             == current_col as i32 - new_col as i32);
+    //                 }
+    //                 'n' => legal = true,
+    //                 'p' => legal = true,
+    //                 'k' => {
+    //                     legal = (current_row == new_row || current_col == new_col)
+    //                         || (current_row as i32 - new_row as i32
+    //                             == current_col as i32 - new_col as i32);
+    //                 }
+    //                 _ => {}
+    //             }
+    //             if legal {
+    //                 move_positions.push(new as usize);
+    //             }
+    //         }
+    //     }
+    //     return move_positions;
+    // }
 }
 
 pub enum GameState {
@@ -94,12 +99,57 @@ impl Board {
         return moves_map;
     }
 
+    pub fn valid_move_in_bounds(&self, pos: usize, to: usize) -> bool {
+        let current_row = pos / 8; // Current row (0-7)
+        let current_col = pos % 8; // Current column (0-7)
+        let mut legal: bool = false;
+
+        let new = to;
+        let new_row = (new as usize) / 8;
+        let new_col = (new as usize) % 8;
+        let name = self.board[pos].clone().unwrap().name.to_ascii_lowercase();
+
+        match name {
+            'r' => {
+                legal = current_row == new_row || current_col == new_col;
+            }
+            'b' => {
+                legal = current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32;
+            }
+            'q' => {
+                legal = (current_row == new_row || current_col == new_col)
+                    || (current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32);
+            }
+            'n' => {
+                let row_diff = (current_row as i32 - new_row as i32).abs();
+                let col_diff = (current_col as i32 - new_col as i32).abs();
+                legal = (row_diff == 2 && col_diff == 1) || (row_diff == 1 && col_diff == 2);
+            }
+            'p' => legal = true,
+            'k' => {
+                legal = (current_row == new_row || current_col == new_col)
+                    || (current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32);
+            }
+            _ => {}
+        }
+        return legal;
+    }
+
     pub fn get_valid_moves(&self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
         let piece = self.board[pos].clone().unwrap();
-        for mv in piece.get_piece_moves(pos) {
-            if self.valid_move(pos, mv) != 0 {
-                moves.push(mv);
+        for mv in piece.moves {
+            for i in 1..=piece.max_steps {
+                let to: i32 = pos as i32 + mv * i as i32;
+                if to > 0
+                    && to < 64
+                    && self.valid_move(pos, to as usize) != 0
+                    && self.valid_move_in_bounds(pos, to as usize)
+                {
+                    moves.push(to as usize);
+                } else {
+                    break;
+                }
             }
         }
         moves
@@ -197,6 +247,7 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
             _ => {
                 let moves: Vec<i32>;
                 let mut color: bool = true;
+                let mut max_steps = 1;
                 match c {
                     'p' => {
                         moves = vec![8, 16]; // Black pawn: 1 square forward (8), 2 squares forward (16 for the initial move)
@@ -211,62 +262,62 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
 
                     'r' => {
                         moves = vec![8, -8, 1, -1]; // Black rook: vertically (±8) or horizontally (±1)
-                                                    // max_steps = 8; // Rook can move up to 8 squares in any direction
+                        max_steps = 8; // Rook can move up to 8 squares in any direction
                         color = false; // Black
                     }
                     'R' => {
                         moves = vec![8, -8, 1, -1]; // White rook: vertically (±8) or horizontally (±1)
-                                                    // max_steps = 8; // Rook can move up to 8 squares in any direction
+                        max_steps = 8; // Rook can move up to 8 squares in any direction
                         color = true; // White
                     }
 
                     'n' => {
                         moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // Black knight: "L" shapes
-                                                                        // max_steps = 1; // Knight jumps, so max_steps is 1
+                        max_steps = 1; // Knight jumps, so max_steps is 1
                         color = false; // Black
                     }
                     'N' => {
                         moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // White knight: "L" shapes
-                                                                        // max_steps = 1; // Knight jumps, so max_steps is 1
+                        max_steps = 1; // Knight jumps, so max_steps is 1
                         color = true; // White
                     }
 
                     'b' => {
                         moves = vec![9, 7, -9, -7]; // Black bishop: diagonally (±9, ±7)
-                                                    // max_steps = 8; // Bishop can move up to 8 squares diagonally
+                        max_steps = 8; // Bishop can move up to 8 squares diagonally
                         color = false; // Black
                     }
                     'B' => {
                         moves = vec![9, 7, -9, -7]; // White bishop: diagonally (±9, ±7)
-                                                    // max_steps = 8; // Bishop can move up to 8 squares diagonally
+                        max_steps = 8; // Bishop can move up to 8 squares diagonally
                         color = true; // White
                     }
 
                     'q' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black queen: combination of rook and bishop
-                                                                  // max_steps = 8; // Queen can move up to 8 squares in any direction
+                        max_steps = 8; // Queen can move up to 8 squares in any direction
                         color = false; // Black
                     }
                     'Q' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // White queen: combination of rook and bishop
-                                                                  // max_steps = 8; // Queen can move up to 8 squares in any direction
+                        max_steps = 8; // Queen can move up to 8 squares in any direction
                         color = true; // White
                     }
 
                     'k' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black king: one square in any direction
-                                                                  // max_steps = 1; // King can only move 1 square
+                        max_steps = 1; // King can only move 1 square
                         color = false; // Black
                     }
                     'K' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // White king: one square in any direction
-                                                                  // max_steps = 1; // King can only move 1 square
+                        max_steps = 1; // King can only move 1 square
                         color = true; // White
                     }
                     _ => moves = Vec::new(),
                 }
                 let pos = width + height * 8;
-                let piece = Piece::new(c, moves, color);
+                let piece = Piece::new(c, moves, max_steps, color);
                 board[pos] = Some(piece);
                 width += 1;
             }
