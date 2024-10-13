@@ -158,6 +158,9 @@ impl Board {
                         && self.valid_move_in_bounds(pos, to as usize)
                     {
                         moves.push(to as usize);
+                        if self.valid_move(pos, to as usize) == 2 {
+                            break;
+                        }
                     } else {
                         break;
                     }
