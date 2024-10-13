@@ -19,11 +19,12 @@ impl Piece {
         };
     }
 }
-
+#[derive(Clone)]
 pub enum GameState {
     InProgress,
     Check,
     Checkmate,
+    GameOver,
 }
 
 #[derive(Clone)]
@@ -31,6 +32,7 @@ pub struct Board {
     pub board: [Option<Piece>; 64],
     pub turn: bool,
     pub selected: Option<usize>,
+    game_state: GameState,
 }
 impl Board {
     pub fn new(board: [Option<Piece>; 64], turn: bool) -> Board {
@@ -38,13 +40,12 @@ impl Board {
             board,
             turn,
             selected: None,
+            game_state: GameState::InProgress,
         };
     }
 
-    pub fn get_game_state() -> GameState {
-        let mut game_state = GameState::InProgress;
-
-        return game_state;
+    pub fn get_game_state(self) -> GameState {
+        return self.game_state;
     }
 
     pub fn get_piece(&self, pos: usize) -> Option<Piece> {
@@ -52,7 +53,7 @@ impl Board {
     }
 
     //keeps track of all moves
-    pub fn get_moves(&self) -> HashMap<usize, Vec<usize>> {
+    pub fn get_moves(&mut self) -> HashMap<usize, Vec<usize>> {
         let mut moves_map: HashMap<usize, Vec<usize>> = HashMap::new();
         for i in 0..64 {
             if let Some(_piece) = &self.get_piece(i) {
@@ -83,7 +84,8 @@ impl Board {
             }
             'q' => {
                 legal = (current_row == new_row || current_col == new_col)
-                    || (current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32);
+                    || (current_row as i32 - new_row as i32).abs()
+                        == (current_col as i32 - new_col as i32).abs();
             }
             'n' => {
                 let row_diff = (current_row as i32 - new_row as i32).abs();
@@ -97,7 +99,8 @@ impl Board {
             }
             'k' => {
                 legal = (current_row == new_row || current_col == new_col)
-                    || (current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32);
+                    || (current_row as i32 - new_row as i32).abs()
+                        == (current_col as i32 - new_col as i32).abs();
             }
             _ => {}
         }
@@ -105,7 +108,7 @@ impl Board {
     }
 
     //Returns all valid moves for a certain piece
-    pub fn get_valid_moves(&self, pos: usize) -> Vec<usize> {
+    pub fn get_valid_moves(&mut self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
         let mut piece = self.get_piece(pos).clone().unwrap();
         if piece.name.to_ascii_lowercase() == 'p' {
@@ -159,6 +162,17 @@ impl Board {
                     {
                         moves.push(to as usize);
                         if self.valid_move(pos, to as usize) == 2 {
+                            if self.board[to as usize]
+                                .clone()
+                                .unwrap()
+                                .name
+                                .to_ascii_lowercase()
+                                == 'k'
+                                && self.board[to as usize].clone().unwrap().color
+                                    != self.board[pos].clone().unwrap().color
+                            {
+                                self.game_state = GameState::Check;
+                            }
                             break;
                         }
                     } else {
@@ -211,24 +225,12 @@ impl Board {
                 self.board[to] = Some(piece_clone.clone());
                 self.board[from] = None;
                 self.turn = !self.turn;
+                if self.board[to].clone().unwrap().name.to_ascii_lowercase() == 'k' {
+                    self.game_state = GameState::GameOver;
+                }
             }
             _ => {}
         }
-    }
-
-    pub fn print_board(&self) {
-        for i in 0..64 {
-            if i % 8 == 0 {
-                println!();
-            }
-            if let Some(piece) = self.get_piece(i) {
-                print!("{} ", piece.name);
-            } else {
-                print!("- ");
-            }
-        }
-        println!();
-        println!("{}", self.turn);
     }
 }
 
@@ -273,15 +275,12 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                 match c {
                     'p' => {
                         moves = vec![8]; // Black pawn: 1 square forward (8), 2 squares forward (16 for the initial move)
-                                         // attacks = vec![7, 9]; // Black pawn: diagonal captures (left 7, right 9)
                         color = false; // Black
                     }
                     'P' => {
                         moves = vec![-8]; // White pawn: 1 square forward (-8), 2 squares forward (-16 for the initial move)
-                                          // attacks = vec![-9, -7]; // White pawn: diagonal captures (left -9, right -7)
                         color = true; // White
                     }
-
                     'r' => {
                         moves = vec![8, -8, 1, -1]; // Black rook: vertically (±8) or horizontally (±1)
                         max_steps = 8; // Rook can move up to 8 squares in any direction
@@ -292,7 +291,6 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                         max_steps = 8; // Rook can move up to 8 squares in any direction
                         color = true; // White
                     }
-
                     'n' => {
                         moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // Black knight: "L" shapes
                         max_steps = 1; // Knight jumps, so max_steps is 1
@@ -303,7 +301,6 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                         max_steps = 1; // Knight jumps, so max_steps is 1
                         color = true; // White
                     }
-
                     'b' => {
                         moves = vec![9, 7, -9, -7]; // Black bishop: diagonally (±9, ±7)
                         max_steps = 8; // Bishop can move up to 8 squares diagonally
@@ -314,7 +311,6 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                         max_steps = 8; // Bishop can move up to 8 squares diagonally
                         color = true; // White
                     }
-
                     'q' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black queen: combination of rook and bishop
                         max_steps = 8; // Queen can move up to 8 squares in any direction
@@ -325,7 +321,6 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                         max_steps = 8; // Queen can move up to 8 squares in any direction
                         color = true; // White
                     }
-
                     'k' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black king: one square in any direction
                         max_steps = 1; // King can only move 1 square

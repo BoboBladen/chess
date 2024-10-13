@@ -12,7 +12,7 @@ const CELL_SIZE: usize = SCREEN_HEIGHT / 8;
 pub fn draw_board<G: Graphics<Texture = Texture>>(
     c: &Context,
     g: &mut G,
-    board: Board,
+    mut board: Board,
     glyphs: &mut GlyphCache,
 ) {
     let mut cnt = 0;
