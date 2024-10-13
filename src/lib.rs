@@ -6,6 +6,7 @@ pub struct Piece {
     moves: Vec<i32>,
     max_steps: usize,
     color: bool,
+    has_moved: bool,
 }
 impl Piece {
     fn new(name: char, moves: Vec<i32>, max_steps: usize, color: bool) -> Piece {
@@ -14,49 +15,9 @@ impl Piece {
             moves,
             max_steps,
             color,
+            has_moved: false,
         };
     }
-
-    // pub fn get_piece_moves(&self, pos: usize) -> Vec<usize> {
-    //     let mut move_positions: Vec<usize> = Vec::new();
-    //     let current_row = pos / 8; // Current row (0-7)
-    //     let current_col = pos % 8; // Current column (0-7)
-    //     for mv in &self.moves {
-    //         let new = pos as i32 + mv;
-    //         if new >= 0 && new < 64 {
-    //             let new_row = (new as usize) / 8;
-    //             let new_col = (new as usize) % 8;
-    //             let name = self.name.to_ascii_lowercase();
-    //             let mut legal: bool = false;
-    //             match name {
-    //                 'r' => {
-    //                     legal = current_row == new_row || current_col == new_col;
-    //                 }
-    //                 'b' => {
-    //                     legal = current_row as i32 - new_row as i32
-    //                         == current_col as i32 - new_col as i32;
-    //                 }
-    //                 'q' => {
-    //                     legal = (current_row == new_row || current_col == new_col)
-    //                         || (current_row as i32 - new_row as i32
-    //                             == current_col as i32 - new_col as i32);
-    //                 }
-    //                 'n' => legal = true,
-    //                 'p' => legal = true,
-    //                 'k' => {
-    //                     legal = (current_row == new_row || current_col == new_col)
-    //                         || (current_row as i32 - new_row as i32
-    //                             == current_col as i32 - new_col as i32);
-    //                 }
-    //                 _ => {}
-    //             }
-    //             if legal {
-    //                 move_positions.push(new as usize);
-    //             }
-    //         }
-    //     }
-    //     return move_positions;
-    // }
 }
 
 pub enum GameState {
@@ -89,32 +50,36 @@ impl Board {
     pub fn get_piece(&self, pos: usize) -> Option<Piece> {
         return self.board[pos].clone();
     }
+
+    //keeps track of all moves
     pub fn get_moves(&self) -> HashMap<usize, Vec<usize>> {
         let mut moves_map: HashMap<usize, Vec<usize>> = HashMap::new();
         for i in 0..64 {
-            if let Some(_piece) = &self.board[i] {
+            if let Some(_piece) = &self.get_piece(i) {
                 moves_map.insert(i, self.get_valid_moves(i));
             }
         }
         return moves_map;
     }
 
+    //Check for bounds
     pub fn valid_move_in_bounds(&self, pos: usize, to: usize) -> bool {
         let current_row = pos / 8; // Current row (0-7)
         let current_col = pos % 8; // Current column (0-7)
         let mut legal: bool = false;
 
         let new = to;
-        let new_row = (new as usize) / 8;
-        let new_col = (new as usize) % 8;
-        let name = self.board[pos].clone().unwrap().name.to_ascii_lowercase();
+        let new_row = new / 8;
+        let new_col = new % 8;
+        let name = self.get_piece(pos).unwrap().name.to_ascii_lowercase();
 
         match name {
             'r' => {
                 legal = current_row == new_row || current_col == new_col;
             }
             'b' => {
-                legal = current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32;
+                legal = (current_row as i32 - new_row as i32).abs()
+                    == (current_col as i32 - new_col as i32).abs();
             }
             'q' => {
                 legal = (current_row == new_row || current_col == new_col)
@@ -125,7 +90,11 @@ impl Board {
                 let col_diff = (current_col as i32 - new_col as i32).abs();
                 legal = (row_diff == 2 && col_diff == 1) || (row_diff == 1 && col_diff == 2);
             }
-            'p' => legal = true,
+            'p' => {
+                legal = (current_row as i32 - new_row as i32).abs()
+                    == (current_col as i32 - new_col as i32).abs()
+                    || current_col == new_col
+            }
             'k' => {
                 legal = (current_row == new_row || current_col == new_col)
                     || (current_row as i32 - new_row as i32 == current_col as i32 - new_col as i32);
@@ -135,32 +104,76 @@ impl Board {
         return legal;
     }
 
+    //Returns all valid moves for a certain piece
     pub fn get_valid_moves(&self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
-        let piece = self.board[pos].clone().unwrap();
+        let mut piece = self.get_piece(pos).clone().unwrap();
+        if piece.name.to_ascii_lowercase() == 'p' {
+            if !piece.has_moved {
+                piece.max_steps = 2;
+            } else {
+                piece.max_steps = 1;
+            }
+        }
         for mv in piece.moves {
             for i in 1..=piece.max_steps {
-                let to: i32 = pos as i32 + mv * i as i32;
-                if to > 0
-                    && to < 64
-                    && self.valid_move(pos, to as usize) != 0
-                    && self.valid_move_in_bounds(pos, to as usize)
-                {
-                    moves.push(to as usize);
+                if piece.name.to_ascii_lowercase() == 'p' {
+                    // pawn logic with attacks
+                    let attack_to: i32 = 1 + pos as i32 + mv as i32;
+                    if let Some(target) = self.get_piece(attack_to as usize) {
+                        if attack_to > 0
+                            && attack_to < 64
+                            && self.valid_move_in_bounds(pos, attack_to as usize)
+                            && target.color != piece.color
+                        {
+                            moves.push(attack_to as usize);
+                        }
+                    }
+                    let attack_to: i32 = -1 + pos as i32 + mv as i32;
+                    if let Some(target) = self.get_piece(attack_to as usize) {
+                        if attack_to > 0
+                            && attack_to < 64
+                            && self.valid_move_in_bounds(pos, attack_to as usize)
+                            && target.color != piece.color
+                        {
+                            moves.push(attack_to as usize);
+                        }
+                    }
+                    let to: i32 = pos as i32 + mv * i as i32;
+                    if to > 0
+                        && to < 64
+                        && self.valid_move(pos, to as usize) == 1
+                        && self.valid_move_in_bounds(pos, to as usize)
+                    {
+                        moves.push(to as usize);
+                    } else {
+                        break;
+                    }
                 } else {
-                    break;
+                    // allow for captures on normal moves
+                    let to: i32 = pos as i32 + mv * i as i32;
+                    if to > 0
+                        && to < 64
+                        && self.valid_move(pos, to as usize) != 0
+                        && self.valid_move_in_bounds(pos, to as usize)
+                    {
+                        moves.push(to as usize);
+                    } else {
+                        break;
+                    }
                 }
             }
         }
         moves
     }
 
+    //Check if a move is valid, return captures etc.
     fn valid_move(&self, from: usize, to: usize) -> usize {
-        let from_piece = self.board[from].clone().unwrap();
+        let from_piece = self.get_piece(from).unwrap();
         if from_piece.color == self.turn {
-            if let Some(to_piece) = &self.board[to] {
+            if let Some(to_piece) = &self.get_piece(to) {
                 if to_piece.color != from_piece.color {
-                    //check for checkmate and etc.
+                    //Capture
                     return 2;
                 }
             } else {
@@ -172,25 +185,31 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, from: usize, to: usize) {
-        if let Some(piece) = &self.board[from] {
-            match self.valid_move(from, to) {
-                0 => {
-                    println!("Invalid move!, {} {}", self.turn, piece.color);
-                }
-                1 => {
-                    //Normal move
-                    self.board[to] = Some(piece.clone());
-                    self.board[from] = None;
-                    self.turn = !self.turn;
-                }
-                2 => {
-                    //Capture
-                    self.board[to] = Some(piece.clone());
-                    self.board[from] = None;
-                    self.turn = !self.turn;
-                }
-                _ => {}
+        let piece_clone;
+        if let Some(piece) = &mut self.board[from] {
+            piece.has_moved = true;
+            piece_clone = piece.clone();
+        } else {
+            return;
+        }
+
+        match self.valid_move(from, to) {
+            0 => {
+                println!("Invalid move!, {} {}", self.turn, piece_clone.color);
             }
+            1 => {
+                //Normal move
+                self.board[to] = Some(piece_clone.clone());
+                self.board[from] = None;
+                self.turn = !self.turn;
+            }
+            2 => {
+                //Capture
+                self.board[to] = Some(piece_clone.clone());
+                self.board[from] = None;
+                self.turn = !self.turn;
+            }
+            _ => {}
         }
     }
 
@@ -250,13 +269,13 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                 let mut max_steps = 1;
                 match c {
                     'p' => {
-                        moves = vec![8, 16]; // Black pawn: 1 square forward (8), 2 squares forward (16 for the initial move)
-                                             // attacks = vec![7, 9]; // Black pawn: diagonal captures (left 7, right 9)
+                        moves = vec![8]; // Black pawn: 1 square forward (8), 2 squares forward (16 for the initial move)
+                                         // attacks = vec![7, 9]; // Black pawn: diagonal captures (left 7, right 9)
                         color = false; // Black
                     }
                     'P' => {
-                        moves = vec![-8, -16]; // White pawn: 1 square forward (-8), 2 squares forward (-16 for the initial move)
-                                               // attacks = vec![-9, -7]; // White pawn: diagonal captures (left -9, right -7)
+                        moves = vec![-8]; // White pawn: 1 square forward (-8), 2 squares forward (-16 for the initial move)
+                                          // attacks = vec![-9, -7]; // White pawn: diagonal captures (left -9, right -7)
                         color = true; // White
                     }
 

@@ -22,7 +22,7 @@ pub fn draw_board<G: Graphics<Texture = Texture>>(c: &Context, g: &mut G, board:
         if let Some(sq) = board.selected {
             if let Some(_sq2) = &board.board[sq] {
                 if board.get_valid_moves(sq).contains(&i) {
-                    color = [0.5, 0.5, 0.5, 1.0];
+                    color = [0.7, 0.7, 0.7, 1.0];
                 }
             }
             if sq == i {
