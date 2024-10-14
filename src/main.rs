@@ -57,7 +57,9 @@ fn main() {
             );
             let pos = x + 8 * y;
             if let Some(sq) = theboard.selected {
-                if let Some(_sq2) = &theboard.board[sq] {
+                if sq == pos {
+                    theboard.selected = None;
+                } else if let Some(_sq2) = &theboard.board[sq] {
                     if theboard.get_valid_moves(sq).contains(&pos) {
                         theboard.move_piece(sq, pos);
                         theboard.selected = None;
