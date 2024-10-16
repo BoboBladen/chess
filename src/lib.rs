@@ -162,16 +162,12 @@ impl Board {
                     {
                         moves.push(to as usize);
                         if self.valid_move(pos, to as usize) == 2 {
-                            if self.board[to as usize]
-                                .clone()
-                                .unwrap()
-                                .name
-                                .to_ascii_lowercase()
-                                == 'k'
-                                && self.board[to as usize].clone().unwrap().color
-                                    != self.board[pos].clone().unwrap().color
-                            {
-                                self.game_state = GameState::Check;
+                            if let Some(p) = &self.board[to as usize] {
+                                if p.name.to_ascii_lowercase() == 'k'
+                                    && p.color != self.board[pos].clone().unwrap().color
+                                {
+                                    self.game_state = GameState::Check;
+                                }
                             }
                             break;
                         }
@@ -261,11 +257,12 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                 width = 0;
             }
             '1'..='8' => {
-                let count = c.to_digit(10).unwrap();
-                let pos = width + height * 8;
-                for _ in 0..count {
-                    board[pos] = None;
-                    width += 1;
+                if let Some(count) = c.to_digit(10) {
+                    let pos = width + height * 8;
+                    for _ in 0..count {
+                        board[pos] = None;
+                        width += 1;
+                    }
                 }
             }
             _ => {
@@ -340,12 +337,16 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
             }
         }
     }
-    let turn_part = fen_parts[1].chars().next().unwrap();
-    let mut turn: bool = true;
-    match turn_part {
-        'w' => turn = true,
-        'b' => turn = false,
-        _ => {}
+    let mut turn: bool;
+    if let Some(turn_part) = fen_parts[1].chars().next() {
+        turn = true;
+        match turn_part {
+            'w' => turn = true,
+            'b' => turn = false,
+            _ => {}
+        }
+    } else {
+        return Err("Invalid FEN-string: No turn part".to_string());
     }
 
     return Ok(Board::new(board, turn));
