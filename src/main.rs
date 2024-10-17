@@ -42,6 +42,11 @@ fn main() {
         GlyphCache::new(font, (), TextureSettings::new()).expect("Could not load font");
 
     while let Some(e) = event.next(&mut window) {
+        if theboard.game_state == lib::GameState::GameOver {
+            println!("Game Over");
+            break;
+        }
+
         if let Some(position) = e.mouse_cursor_args() {
             mouse_position = position;
         }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 #[derive(Clone)]
 pub struct Piece {
@@ -19,7 +19,7 @@ impl Piece {
         };
     }
 }
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum GameState {
     InProgress,
     Check,
@@ -32,7 +32,8 @@ pub struct Board {
     pub board: [Option<Piece>; 64],
     pub turn: bool,
     pub selected: Option<usize>,
-    game_state: GameState,
+    pub game_state: GameState,
+    check_moves: Option<(usize, usize)>,
 }
 impl Board {
     pub fn new(board: [Option<Piece>; 64], turn: bool) -> Board {
@@ -41,11 +42,8 @@ impl Board {
             turn,
             selected: None,
             game_state: GameState::InProgress,
+            check_moves: None,
         };
-    }
-
-    pub fn get_game_state(self) -> GameState {
-        return self.game_state;
     }
 
     pub fn get_piece(&self, pos: usize) -> Option<Piece> {
@@ -110,78 +108,89 @@ impl Board {
     //Returns all valid moves for a certain piece
     pub fn get_valid_moves(&mut self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
-        let mut piece = self.get_piece(pos).clone().unwrap();
-        if piece.name.to_ascii_lowercase() == 'p' {
-            if !piece.has_moved {
-                piece.max_steps = 2;
-            } else {
-                piece.max_steps = 1;
-            }
-        }
-        for mv in piece.moves {
-            for i in 1..=piece.max_steps {
-                if piece.name.to_ascii_lowercase() == 'p' {
-                    // pawn logic with attacks
-                    let attack_to: i32 = 1 + pos as i32 + mv as i32;
-                    if let Some(target) = self.get_piece(attack_to as usize) {
-                        if attack_to > 0
-                            && attack_to < 64
-                            && self.valid_move_in_bounds(pos, attack_to as usize)
-                            && target.color != piece.color
-                        {
-                            moves.push(attack_to as usize);
-                        }
-                    }
-                    let attack_to: i32 = -1 + pos as i32 + mv as i32;
-                    if let Some(target) = self.get_piece(attack_to as usize) {
-                        if attack_to > 0
-                            && attack_to < 64
-                            && self.valid_move_in_bounds(pos, attack_to as usize)
-                            && target.color != piece.color
-                        {
-                            moves.push(attack_to as usize);
-                        }
-                    }
-                    let to: i32 = pos as i32 + mv * i as i32;
-                    if to > 0
-                        && to < 64
-                        && self.valid_move(pos, to as usize) == 1
-                        && self.valid_move_in_bounds(pos, to as usize)
-                    {
-                        moves.push(to as usize);
-                    } else {
-                        break;
-                    }
+        if let Some(mut piece) = self.get_piece(pos).clone() {
+            //add another step on first move for pawns
+            if piece.name.to_ascii_lowercase() == 'p' {
+                if !piece.has_moved {
+                    piece.max_steps = 2;
                 } else {
-                    // allow for captures on normal moves
-                    let to: i32 = pos as i32 + mv * i as i32;
-                    if to > 0
-                        && to < 64
-                        && self.valid_move(pos, to as usize) != 0
-                        && self.valid_move_in_bounds(pos, to as usize)
-                    {
-                        moves.push(to as usize);
-                        if self.valid_move(pos, to as usize) == 2 {
-                            if let Some(p) = &self.board[to as usize] {
-                                if p.name.to_ascii_lowercase() == 'k'
-                                    && p.color != self.board[pos].clone().unwrap().color
-                                {
-                                    self.game_state = GameState::Check;
-                                }
+                    piece.max_steps = 1;
+                }
+            }
+            for mv in piece.moves {
+                for i in 1..=piece.max_steps {
+                    if piece.name.to_ascii_lowercase() == 'p' {
+                        // pawn logic with attacks
+                        let attack_to: i32 = 1 + pos as i32 + mv as i32;
+                        if let Some(target) = self.get_piece(attack_to as usize) {
+                            if attack_to > 0
+                                && self.valid_move(pos, attack_to as usize) != 0
+                                && target.color != piece.color
+                            {
+                                moves.push(attack_to as usize);
                             }
+                        }
+                        let attack_to: i32 = -1 + pos as i32 + mv as i32;
+                        if let Some(target) = self.get_piece(attack_to as usize) {
+                            if attack_to > 0
+                                && self.valid_move(pos, attack_to as usize) != 0
+                                && target.color != piece.color
+                            {
+                                moves.push(attack_to as usize);
+                            }
+                        }
+                        let to: i32 = pos as i32 + mv * i as i32;
+                        if to > 0 && self.valid_move(pos, to as usize) == 1 {
+                            moves.push(to as usize);
+                        } else {
                             break;
                         }
                     } else {
-                        break;
+                        // allow for captures on normal moves
+                        let to: i32 = pos as i32 + mv * i as i32;
+                        if to > 0 && self.valid_move(pos, to as usize) != 0 {
+                            moves.push(to as usize);
+                            if self.valid_move(pos, to as usize) == 2 {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
+        } else {
+            println!("No valid moves");
         }
         moves
     }
 
-    //Check if a move is valid, return captures etc.
+    fn result_in_check(&self, from: usize, to: usize) -> bool {
+        //TODO
+        return true;
+    }
+
+    fn result_in_mate(&mut self, from: usize, to: usize) -> bool {
+        let mut cloned_board = self.clone();
+
+        cloned_board.board[to] = cloned_board.board[from].clone();
+        cloned_board.board[from] = None;
+        cloned_board.turn = !cloned_board.turn;
+
+        if let Some(mv) = cloned_board.check_moves {
+            if self.get_valid_moves(mv.0).contains(&mv.1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //Check if a move is valid (right turn and in bounds), return captures etc.
     fn valid_move(&self, from: usize, to: usize) -> usize {
+        if !self.valid_move_in_bounds(from, to) || to >= 64 {
+            return 0;
+        }
         let from_piece = self.get_piece(from).unwrap();
         if from_piece.color == self.turn {
             if let Some(to_piece) = &self.get_piece(to) {
@@ -218,15 +227,29 @@ impl Board {
             }
             2 => {
                 //Capture
+                let p = self.board[to].clone().unwrap();
                 self.board[to] = Some(piece_clone.clone());
                 self.board[from] = None;
                 self.turn = !self.turn;
-                if self.board[to].clone().unwrap().name.to_ascii_lowercase() == 'k' {
+                if p.name.to_ascii_lowercase() == 'k' {
                     self.game_state = GameState::GameOver;
                 }
             }
             _ => {}
         }
+        // for mv in self.get_valid_moves(to) {
+        //     if self.valid_move(to, mv as usize) == 2 {
+        //         if let Some(p) = &self.board[mv] {
+        //             if p.name.to_ascii_lowercase() == 'k'
+        //                 && p.color != self.board[to].clone().unwrap().color
+        //             {
+        //                 self.game_state = GameState::Check;
+        //                 self.check_moves = Some((to, mv));
+        //             }
+        //         }
+        //         break;
+        //     }
+        // }
     }
 }
 
@@ -290,12 +313,10 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                     }
                     'n' => {
                         moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // Black knight: "L" shapes
-                        max_steps = 1; // Knight jumps, so max_steps is 1
                         color = false; // Black
                     }
                     'N' => {
                         moves = vec![17, 15, 10, 6, -17, -15, -10, -6]; // White knight: "L" shapes
-                        max_steps = 1; // Knight jumps, so max_steps is 1
                         color = true; // White
                     }
                     'b' => {
@@ -320,12 +341,10 @@ pub fn create_board(fen_string: Option<&str>) -> Result<Board, String> {
                     }
                     'k' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // Black king: one square in any direction
-                        max_steps = 1; // King can only move 1 square
                         color = false; // Black
                     }
                     'K' => {
                         moves = vec![8, -8, 1, -1, 9, 7, -9, -7]; // White king: one square in any direction
-                        max_steps = 1; // King can only move 1 square
                         color = true; // White
                     }
                     _ => moves = Vec::new(),
