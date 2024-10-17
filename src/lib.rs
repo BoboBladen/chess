@@ -33,7 +33,7 @@ pub struct Board {
     pub turn: bool,
     pub selected: Option<usize>,
     pub game_state: GameState,
-    check_moves: Option<(usize, usize)>,
+    check_moves: Option<Vec<(usize, usize)>>,
 }
 impl Board {
     pub fn new(board: [Option<Piece>; 64], turn: bool) -> Board {
@@ -105,7 +105,7 @@ impl Board {
         return legal;
     }
 
-    //Returns all valid moves for a certain piece
+    //Returns all valid tiles to move to for a certain piece
     pub fn get_valid_moves(&mut self, pos: usize) -> Vec<usize> {
         let mut moves: Vec<usize> = vec![];
         if let Some(mut piece) = self.get_piece(pos).clone() {
@@ -148,7 +148,9 @@ impl Board {
                     } else {
                         // allow for captures on normal moves
                         let to: i32 = pos as i32 + mv * i as i32;
-                        if to > 0 && self.valid_move(pos, to as usize) != 0 {
+                        if to > 0 && self.valid_move(pos, to as usize) != 0
+                        // && !self.result_in_mate(pos, to as usize)
+                        {
                             moves.push(to as usize);
                             if self.valid_move(pos, to as usize) == 2 {
                                 break;
@@ -159,8 +161,6 @@ impl Board {
                     }
                 }
             }
-        } else {
-            println!("No valid moves");
         }
         moves
     }
@@ -176,19 +176,32 @@ impl Board {
         cloned_board.board[to] = cloned_board.board[from].clone();
         cloned_board.board[from] = None;
         cloned_board.turn = !cloned_board.turn;
-
-        if let Some(mv) = cloned_board.check_moves {
-            if self.get_valid_moves(mv.0).contains(&mv.1) {
-                return true;
+        if let Some(p) = &self.board[from] {
+            if let Some(mvs) = cloned_board.check_moves.take() {
+                for mv in mvs {
+                    if cloned_board.get_valid_moves(mv.0).contains(&mv.1) {
+                        if p.name.to_ascii_lowercase() == 'k' {
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }
+                }
             }
-        }
 
-        return false;
+            if p.name.to_ascii_lowercase() == 'k' {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return true;
+        }
     }
 
     //Check if a move is valid (right turn and in bounds), return captures etc.
-    fn valid_move(&self, from: usize, to: usize) -> usize {
-        if !self.valid_move_in_bounds(from, to) || to >= 64 {
+    fn valid_move(&mut self, from: usize, to: usize) -> usize {
+        if !self.valid_move_in_bounds(from, to) || to >= 64 || self.result_in_mate(from, to) {
             return 0;
         }
         let from_piece = self.get_piece(from).unwrap();
@@ -223,6 +236,7 @@ impl Board {
                 //Normal move
                 self.board[to] = Some(piece_clone.clone());
                 self.board[from] = None;
+                self.check_check(to);
                 self.turn = !self.turn;
             }
             2 => {
@@ -230,6 +244,7 @@ impl Board {
                 let p = self.board[to].clone().unwrap();
                 self.board[to] = Some(piece_clone.clone());
                 self.board[from] = None;
+                self.check_check(to);
                 self.turn = !self.turn;
                 if p.name.to_ascii_lowercase() == 'k' {
                     self.game_state = GameState::GameOver;
@@ -237,19 +252,26 @@ impl Board {
             }
             _ => {}
         }
-        // for mv in self.get_valid_moves(to) {
-        //     if self.valid_move(to, mv as usize) == 2 {
-        //         if let Some(p) = &self.board[mv] {
-        //             if p.name.to_ascii_lowercase() == 'k'
-        //                 && p.color != self.board[to].clone().unwrap().color
-        //             {
-        //                 self.game_state = GameState::Check;
-        //                 self.check_moves = Some((to, mv));
-        //             }
-        //         }
-        //         break;
-        //     }
-        // }
+    }
+    fn check_check(&mut self, from: usize) {
+        for to in self.get_valid_moves(from) {
+            if self.valid_move(from, to) == 2 {
+                if let Some(p) = &self.board[to] {
+                    if p.name.to_ascii_lowercase() == 'k'
+                        && p.color != self.board[from].clone().unwrap().color
+                    {
+                        self.game_state = GameState::Check;
+
+                        if let Some(check_moves) = self.check_moves.as_mut() {
+                            check_moves.push((from, to));
+                        } else {
+                            self.check_moves = Some(vec![(from, to)]);
+                        }
+                        println!("Check {} -> {} ", from, to);
+                    }
+                }
+            }
+        }
     }
 }
 
