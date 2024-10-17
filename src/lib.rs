@@ -176,27 +176,14 @@ impl Board {
         cloned_board.board[to] = cloned_board.board[from].clone();
         cloned_board.board[from] = None;
         cloned_board.turn = !cloned_board.turn;
-        if let Some(p) = &self.board[from] {
-            if let Some(mvs) = cloned_board.check_moves.take() {
-                for mv in mvs {
-                    if cloned_board.get_valid_moves(mv.0).contains(&mv.1) {
-                        if p.name.to_ascii_lowercase() == 'k' {
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    }
+        if let Some(mvs) = cloned_board.check_moves.take() {
+            for mv in mvs {
+                if cloned_board.get_valid_moves(mv.0).contains(&mv.1) {
+                    return true;
                 }
             }
-
-            if p.name.to_ascii_lowercase() == 'k' {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return true;
         }
+        return false;
     }
 
     //Check if a move is valid (right turn and in bounds), return captures etc.
