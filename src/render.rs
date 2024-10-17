@@ -1,4 +1,4 @@
-use graphics::{ellipse, Ellipse};
+use graphics::Ellipse;
 use graphics::{Context, Graphics};
 use graphics::{Rectangle, Transformed};
 
